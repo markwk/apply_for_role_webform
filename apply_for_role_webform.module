@@ -1,0 +1,108 @@
+<?php
+// $Id$
+
+define('DISABLED_KEY','disabled');
+
+/* Implementation of hook_form_alter
+Add an option to select webforms to allow applications to go through */
+function apply_for_role_webform_form_alter(&$form, &$form_state, $form_id) {
+	global $user;
+
+  if ($form_id == "webform_configure_form") {
+      
+		// Get all available roles
+		$available_roles = array(DISABLED_KEY => '-- DISABLED --') + variable_get('users_apply_roles',array());
+
+    // Get role ID if already filled out
+    $roleid = variable_get('apply_for_role_webform_'.$form['nid']['#value'],'disabled');
+
+    $form['webform_bridge'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Role Applications'),
+      '#description' => t("Connect this webform to the Apply for Role module. If a role is selected, the user who submits the webform will also apply for the role. <em><b>NOTE:</b> If you don't see a role here, check the Apply for role administration page to make sure it is checked.</em>"),
+      '#weight' => -2,
+      '#collapsible' => TRUE,
+    );
+    $form['webform_bridge']['apply_for_role'] = array(
+      '#type' => 'select',
+      '#title' => t('Role to apply for'),
+      '#default_value' => $roleid,
+      '#options' => $available_roles,
+      '#description' => t('Select an available role that can be applied for using this webform.'),
+    );
+    $form['webform_bridge']['error_message'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Custom error message'),
+      '#default_value' => variable_get('apply_for_role_webform_'.$form['nid']['#value'].'_errormsg','You can not complete this application at this time. Please contact an administrator for more information.'),
+      '#description' => t('A user may attempt to submit a webform role application and receive an error for (1) Already having the role, (2) Already applied for the role, or (3) The role no longer exists. This is the error text they would see.'),
+    );
+  
+  	$form['#submit'][] = '_admin_form_submit';
+  	
+  /* Add additional form validation for submitted webforms */
+	} elseif (substr($form_id,0,20) == "webform_client_form_") {
+		$form['#validate'][] = '_validate_webform_submission';
+	}
+}
+
+/* Internal submit handler function to save form data */
+function _admin_form_submit($form, &$form_state) {
+  $webformid = $form_state['values']['nid'];
+  variable_set('apply_for_role_webform_'.$webformid,$form_state['values']['apply_for_role']);
+  variable_set('apply_for_role_webform_'.$webformid.'_errormsg',$form_state['values']['error_message']);
+}
+
+/* our validation method that is called for each webform submission */
+function _validate_webform_submission($form, &$form_state) {
+	global $user;
+	$wid = $form['#node']->nid;
+	$apply_for_role_id = variable_get('apply_for_role_webform_'.$wid,DISABLED_KEY);
+
+	// Only validate webform submissions that the admin set to validate for role application
+	if ($apply_for_role_id != DISABLED_KEY) {
+
+    $available_roles = apply_for_role_available_roles($user);
+    if ($user->uid != 0) {
+      // Can user apply for this role?
+      if (!array_key_exists($apply_for_role_id, $available_roles)) {
+        form_set_error('',check_plain(variable_get('apply_for_role_webform_'.$wid.'_errormsg','')));
+      }
+    } else {
+      form_set_error('',t('You must first be registered to submit this form.'));
+    }
+	}
+}
+
+
+/* implementation of hook_webform_submission_insert */
+function apply_for_role_webform_webform_submission_insert($node, $submission) {
+	global $user;
+	
+  // Role application attached to webform?
+  $apply_for_role_id = variable_get('apply_for_role_webform_'.$node->nid,DISABLED_KEY);
+  if ($apply_for_role_id != DISABLED_KEY) {
+	  // Attempt to add the role application
+		if (apply_for_role_add_apply($user,$apply_for_role_id)) {
+			// Get application ID of just-inserted role application
+			$id = db_result(db_query("SELECT MAX(aid) as maxid FROM {users_roles_apply}"));
+			  
+			$data = (object) array('aid' => $id, 'wid' => $node->nid, 'sid' => $submission->sid);
+			/* add association */
+			drupal_write_record('users_roles_apply_webforms',$data);
+		} else {
+			// this should never happen. apply_for_role_add_apply does the same two checks that 
+			// we did in our validate method. We can't just rely on this function to do the checks
+			// because we can't stop the form submission from within this function anyway
+			watchdog('apply_for_role_webform','Could not add role application on webform submission. RID: @rid, UID: @uid, NID: @nid',array('@rid'=>$apply_for_role_id,'@uid'=>$user->uid, '@nid' => $node->nid),WATCHDOG_ERROR);
+		}
+	}
+}
+
+
+/* implementation of hook_apply_for_role */
+function apply_for_role_webform_apply_for_role ($op, $apply) {
+	if ($op === 'remove') {
+		// remove our bridge
+		db_query("DELETE FROM {users_roles_apply_webforms} WHERE aid = %d", $apply->aid);
+	}
+}

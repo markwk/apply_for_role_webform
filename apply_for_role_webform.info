@@ -1,0 +1,8 @@
+; $Id$
+
+name = Apply for role - Webform
+description = "Bridges Apply for Role and Webform"
+package = "User management"
+core = 6.x
+dependencies[] = apply_for_role
+dependencies[] = webform

@@ -1,0 +1,39 @@
+<?php
+// $Id$
+
+function apply_for_role_webform_install() {
+  // create table
+  drupal_install_schema('apply_for_role_webform');
+}
+
+function apply_for_role_webform_schema() {
+  $schema['users_roles_apply_webforms'] = array(
+    'fields' => array(
+      'aid' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'wid' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'sid' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('aid','sid'),
+  );
+
+  return $schema;
+}
+
+function apply_for_role_webform_uninstall() {
+// NEED TO CHANGE
+  variable_del('apply_for_role_webform_wids');
+  // remove table
+ 	drupal_uninstall_schema('apply_for_role_webform');
+}
