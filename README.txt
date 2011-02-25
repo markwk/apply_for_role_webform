@@ -1,4 +1,3 @@
-$Id$
 
 "Apply for Role - Webform" is an extension of the Apply for Role module.
 It allows users to apply for roles using a webform by alterting the webform settings.

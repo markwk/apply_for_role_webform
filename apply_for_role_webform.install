@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 function apply_for_role_webform_install() {
   // create table

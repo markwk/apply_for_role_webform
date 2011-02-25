@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 define('DISABLED_KEY','disabled');
 
