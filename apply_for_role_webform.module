@@ -37,7 +37,6 @@ function apply_for_role_webform_form_alter(&$form, &$form_state, $form_id) {
     );
   
   	$form['#submit'][] = '_admin_form_submit';
-  	
   /* Add additional form validation for submitted webforms */
 	} elseif (substr($form_id,0,20) == "webform_client_form_") {
 		$form['#validate'][] = '_validate_webform_submission';
@@ -83,7 +82,8 @@ function apply_for_role_webform_webform_submission_insert($node, $submission) {
 	  // Attempt to add the role application
 		if (apply_for_role_add_apply($user,$apply_for_role_id)) {
 			// Get application ID of just-inserted role application
-			$id = db_result(db_query("SELECT MAX(aid) as maxid FROM {users_roles_apply}"));
+			//$id = db_result(db_query("SELECT MAX(aid) as maxid FROM {users_roles_apply}"));
+			$id = db_query("SELECT MAX(aid) as maxid FROM {users_roles_apply}")->fetchCol();
 			  
 			$data = (object) array('aid' => $id, 'wid' => $node->nid, 'sid' => $submission->sid);
 			/* add association */
@@ -102,6 +102,6 @@ function apply_for_role_webform_webform_submission_insert($node, $submission) {
 function apply_for_role_webform_apply_for_role ($op, $apply) {
 	if ($op === 'remove') {
 		// remove our bridge
-		db_query("DELETE FROM {users_roles_apply_webforms} WHERE aid = %d", $apply->aid);
+		db_query("DELETE FROM {users_roles_apply_webforms} WHERE aid = :AID", array(":AID" => $apply->aid));
 	}
 }
